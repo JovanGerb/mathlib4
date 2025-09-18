@@ -287,9 +287,7 @@ elab "name_poly_vars " head:term_decl noWs body:polyesque_notation_input+ : comm
   let mut lastHead : Term := default
   for p in body do
     let processed ← p.processAndDeclarePolyesqueNotationInput terms functor
-    terms := processed.2.1
-    functor := processed.2.2.1
-    lastHead := processed.2.2.2
+    (terms, functor, lastHead) := processed.2
     bodyVar := bodyVar.push processed.1
   have body := Syntax.TSepArray.ofElems (sep := "") bodyVar
   let typeIdent ← functor (← `($$i:ident))
@@ -298,14 +296,13 @@ elab "name_poly_vars " head:term_decl noWs body:polyesque_notation_input+ : comm
   let polyesqueTerm : Polyesque ← `(polyesque| ($$t:term)$body:polyesque_notation*)
   let type : Term := ← match head with
   | `(term_decl| $_:hole) => do
-    let typeHole ← functor (← `(_))
-    let polyesqueHole : Polyesque ← `(polyesque| _$body:polyesque_notation*)
+    let typeHole ← functor (← `($$h:hole))
+    let polyesqueHole : Polyesque ← `(polyesque| $$h:hole$body:polyesque_notation*)
     elabMacroRulesAndTrace polyesqueHole typeHole
     elabMacroRulesAndTrace polyesqueIdent typeIdent
     elabMacroRulesAndTrace polyesqueTerm typeTerm
     -- if the head of the term is a constant, then deploy the unexpander.
-    match lastHead with
-    | `($c:ident) => do
+    if let `($c:ident) := lastHead then
       trace[name_poly_vars] m!"Declaring unexpander for {c}"
       elabCommand <| ← `(command|
         @[local app_unexpander $c]
@@ -314,15 +311,13 @@ elab "name_poly_vars " head:term_decl noWs body:polyesque_notation_input+ : comm
           | `($typeIdent) => `($polyesqueIdent:polyesque)
           | `($typeTerm) => `($polyesqueTerm:polyesque)
           | _ => throw ())
-    | _ => pure ()
     return typeHole
   | _ => do
     let type ← functor head.term
     let polyesque : Polyesque ← `(polyesque| $head$body:polyesque_notation*)
     elabMacroRulesAndTrace polyesque type
     -- if the head of the term is a constant, then deploy the unexpander.
-    match lastHead with
-    | `($c:ident) => do
+    if let `($c:ident) := lastHead then
       trace[name_poly_vars] m!"Declaring unexpander for {c}"
       match head with
       | `(term_decl| $R:ident) => do
@@ -342,7 +337,6 @@ elab "name_poly_vars " head:term_decl noWs body:polyesque_notation_input+ : comm
               | _ => throw ()
             | _ => throw ())
       | _ => pure ()
-    | _ => pure ()
     return type
   trace[name_poly_vars] m!"Terms:"
   for (v, t) in terms do
