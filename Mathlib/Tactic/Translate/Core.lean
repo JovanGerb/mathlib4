@@ -656,7 +656,7 @@ partial def transformDeclRec (t : TranslateData) (ref : Syntax) (pre tgt_pre src
   -- if the auxiliary declaration doesn't have prefix `pre`, then we have to add this declaration
   -- to the translation dictionary, since otherwise we cannot translate the name.
   let relevantArg ← findRelevantArg t src
-  if !pre.isPrefixOf src || src != pre && relevantArg != 0 then
+  if src != pre then
     insertTranslation t src tgt { relevantArg }
   -- now transform the source declaration
   let trgDecl ← MetaM.run' <| updateDecl t tgt srcDecl reorder dontTranslate
