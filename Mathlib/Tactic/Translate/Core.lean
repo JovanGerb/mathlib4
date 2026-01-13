@@ -721,6 +721,8 @@ partial def transformDeclRec (t : TranslateData) (ref : Syntax) (pre tgt_pre src
     defeqAttr.setTag tgt
   if let some matcherInfo ← getMatcherInfo? src then
     Match.addMatcherInfo tgt matcherInfo
+  if ← isRecursiveDefinition src then
+    markAsRecursive tgt
   -- necessary so that e.g. match equations can be generated for `tgt`
   enableRealizationsForConst tgt
 
