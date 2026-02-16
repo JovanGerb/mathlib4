@@ -99,6 +99,13 @@ private partial def getClassDataProjections (e : Expr) (acc : Array (List Nat ×
     -- occur at the root. We still want to record these to warn on duplicate inductive classes.
     return acc
 
+class Foo.{u} (α : Type u) where x : α
+
+class Foo'.{u} (α : Type u) where x' : α
+
+class Bar'.{u, v} (α : Type u) (β : Type v) extends Foo.{u} α, Foo'.{v} β
+
+
 /-- Given an array of projection types paired with the locations of their parents, returns `true`
 if `p` is true for the types at any of the starting indices or their transitive parents. -/
 private partial def hasAnyParentWhich (p : Expr → Bool)
@@ -320,29 +327,20 @@ namespace Environment
 
 /--
 Lints against data-carrying overlaps between instances in the local contexts of declarations.
-Only considers declarations which originate in modules with the given prefix.
 -/
-def overlappingInstancesInModsWithPrefix (modPrefix : Name) : Batteries.Tactic.Lint.Linter where
+@[env_linter]
+def overlappingInstances : Batteries.Tactic.Lint.Linter where
   noErrorsFound :=
-    m!"No declarations in modules with prefix `{modPrefix}` have overlapping instance arguments"
+    m!"No declarations have overlapping instance arguments"
   errorsFound :=
-    m!"Some declarations in modules with prefix `{modPrefix}` have overlapping instance arguments"
+    m!"Some declarations have overlapping instance arguments"
   test declName := do
     if ← isAutoDecl declName then return none
-    let some s ← findModuleOf? declName | throwError "Could not find module for {declName}"
-    unless modPrefix.isPrefixOf s do return none
     MetaM.run' do
       forallTelescope (← getConstInfo declName).type fun _ _ => do
         let overlaps ← findOverlappingDataInstances
         if overlaps.isEmpty then return none else
           some <$> overlaps.toMsg m!"declaration {.ofConstName declName}"
-
-/--
-Lints against data-carrying overlaps between instances in the local contexts of declarations.
-Only considers declarations which originate in Mathlib.
--/
-@[env_linter]
-def overlappingInstancesInMathlib := overlappingInstancesInModsWithPrefix `Mathlib
 
 end Environment
 
