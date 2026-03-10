@@ -69,14 +69,18 @@ theorem not_isField_of_subsingleton (R : Type u) [Semiring R] [Subsingleton R] :
   let ⟨_, _, h⟩ := h.exists_pair_ne
   h (Subsingleton.elim _ _)
 
-open Classical in
+@[no_expose, implicit_reducible]
+noncomputable def IsField.toInv {R : Type u} [Semiring R] (h : IsField R) : Inv R where
+  inv a := open Classical in
+    if ha : a = 0 then 0 else Classical.choose (h.mul_inv_cancel ha)
+
 /-- Transferring from `IsField` to `Semifield`. -/
 @[implicit_reducible]
 noncomputable def IsField.toSemifield {R : Type u} [Semiring R] (h : IsField R) : Semifield R where
   __ := ‹Semiring R›
   __ := h
-  inv a := if ha : a = 0 then 0 else Classical.choose (h.mul_inv_cancel ha)
-  inv_zero := dif_pos rfl
+  toInv := h.toInv
+  inv_zero := by exact dif_pos rfl
   mul_inv_cancel a ha := by convert Classical.choose_spec (h.mul_inv_cancel ha); exact dif_neg ha
   nnqsmul := _
   nnqsmul_def _ _ := rfl
@@ -84,7 +88,7 @@ noncomputable def IsField.toSemifield {R : Type u} [Semiring R] (h : IsField R) 
 /-- Transferring from `IsField` to `Field`. -/
 @[implicit_reducible]
 noncomputable def IsField.toField {R : Type u} [Ring R] (h : IsField R) : Field R where
-  __ := (‹Ring R› :) -- this also works without the `( :)`, but it's slow
+  __ := ‹Ring R›
   __ := h.toSemifield
   qsmul := _
   qsmul_def := fun _ _ => rfl
