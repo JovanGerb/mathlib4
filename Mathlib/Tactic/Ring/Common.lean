@@ -79,6 +79,9 @@ This feature wasn't needed yet, so it's not implemented yet.
 ring, semiring, exponent, power
 -/
 
+class Ring.PowerSubst {α : Type*} [CommSemiring α] (a : α) (n : outParam Nat) (p : outParam α) where
+  eq : a ^ n = p
+
 public meta section
 
 assert_not_exists IsOrderedMonoid
@@ -401,7 +404,7 @@ def ExBase.toProd
     (va : ExBase bt sα a) (vb : ExProdNat b) :
     Result (ExProd bt sα) q($a ^ $b * (nat_lit 1).rawCast) :=
   let ⟨_, one, pf⟩ := rc.one
-  ⟨_, .mul va vb (.const  (one)), q(by rw [← $pf])⟩
+  ⟨_, .mul va vb (.const one), q(by rw [← $pf])⟩
 
 /-- Embed `ExProd` in `ExSum` by adding 0. -/
 def ExProd.toSum {e : Q($α)} (v : ExProd bt sα e) : ExSum bt sα q($e + 0) :=
@@ -593,6 +596,48 @@ partial def evalAdd {a b : Q($α)} (va : ExSum bt sα a) (vb : ExSum bt sα b) :
         let ⟨_c, vc, pc⟩ ← evalAdd va vb₂
         return ⟨_, .add vb₁ vc, q(add_pf_add_gt $b₁ $pc)⟩
 
+/-! ### Polynomial substitution -/
+
+-- theorem expand_pow_mul₁ {e₁ e₂ e₃ : ℕ} (h₁ : a₁ ^ e₂ = a₂) (h₂ : e₁ = e₂ * e₃) :
+--     a₁ ^ e₁ * b = a₂ ^ e₃ * b := by
+--   rw [h₂, ← h₁, pow_mul]
+
+-- theorem expand_pow_mul₂ {e₁ e₂ e₃ e₄ : ℕ} (h₁ : a₁ ^ e₂ = a₂) (h₂ : e₁ = e₂ * e₃ + e₄) :
+--     a₁ ^ e₁ * b = a₂ ^ e₃ * (a₁ ^ e₄ * b) := by
+--   rw [h₂, ← h₁, pow_add, pow_mul, mul_assoc]
+
+
+structure PowerEq where
+  n : Q(ℕ)
+  p : Expr
+  vb : ExProdNat n
+  vp : ExSum (fun _ ↦ Unit) sℕ p
+  /-- A proof of type `Q(_ ^ $b = $p)` -/
+  pf : Expr
+
+def mkPowerEq (a : Q($α)) : MetaM (Option ((n : Q(ℕ)) × (p : Q($α)) × Q($a ^ $n = $p))) := do
+  let pf ←
+    try mkAppOptM' (.const ``Ring.PowerSubst.eq [u]) #[α, sα, a, none, none, none]
+    catch _ => return none
+  let Lean.mkApp3 _ n p _ := pf | return none
+  return some ⟨n, p, pf⟩
+
+abbrev RingM (α : Type) := StateRefT (Std.HashMap ℕ PowerEq) AtomM α
+
+-- def mkMul {x b : Q($α)} {e : Q(ℕ)} (vx : ExBase sα x) (ve : ExProd sℕ e) (vb : ExProd sα e) :
+--     RingM <| Option (Σ (a : Q($α)) (v : ExProd sα q($a)), Q($x ^ $e * $b = $a)) := do
+--   let .atom id := vx | return none
+--   let some ⟨a', b', _, vb', vr', h₁⟩ := (← get)[id]? | return none
+--   let some ⟨q, r, vq, vr, h₂⟩ := divide ve vb' | return none
+--   let ⟨r', vr'⟩ := vr'.cast (sβ := sα)
+--   ()
+-- partial def evalPow₁ {a : Q($α)} {b : Q(ℕ)} (va : ExSum bt sα a) (vb : ExProdNat b) :
+--     MetaM <| Result (ExSum bt sα) q($a ^ $b) := do
+--   sorry
+-- def evalMul₁ {a b : Q($α)} (va : ExProd bt sα a) (vb : ExSum bt sα b) :
+--     MetaM <| Result (ExSum bt sα) q($a * $b) := do
+--   sorry
+
 /-! ### Multiplication -/
 
 theorem one_mul (a : R) : (nat_lit 1).rawCast * a = a := by simp [Nat.rawCast]
@@ -762,7 +807,7 @@ def evalSub {a b : Q($α)}
 /-! ### Exponentiation -/
 
 theorem pow_prod_atom (a : R) (b) {e : R} (h : (a + 0) ^ b * (nat_lit 1).rawCast = e) :
-    a ^ b = e := by
+    a ^ b = e + 0 := by
   simp [← h]
 
 /--
@@ -773,9 +818,9 @@ the input types are different.)
 * `x ^ e = (x + 0) ^ e * 1`
 -/
 def evalPowProdAtom {a : Q($α)} {b : Q(ℕ)} (va : ExProd bt sα a) (vb : ExProdNat b) :
-    Result (ExProd bt sα) q($a ^ $b) :=
-    let ⟨_, vc, pc⟩ := (ExBase.sum va.toSum).toProd rc vb
-  ⟨_, vc, q(pow_prod_atom $a $b $pc)⟩
+    Result (ExSum bt sα) q($a ^ $b) :=
+  let ⟨_, vc, pc⟩ := (ExBase.sum va.toSum).toProd rc vb
+  ⟨_, vc.toSum, q(pow_prod_atom $a $b $pc)⟩
 
 theorem pow_atom (a : R) (b) {e : R} (h : a ^ b * (nat_lit 1).rawCast = e) :
     a ^ b = e + 0 := by
@@ -888,7 +933,7 @@ partial def evalPowNat {a : Q($α)} (va : ExSum bt sα a) (n : Q(ℕ)) :
       let ⟨_, vd, pd⟩ ← evalMul rc rcℕ vc va
       return ⟨_, vd, q(pow_bit1 $pb $pc $pd)⟩
 
-theorem one_pow {a : R} (b : ℕ) (ha : IsNat a 1) : a ^ b = a := by
+theorem one_pow {a : R} (b : ℕ) (ha : IsNat a 1) : a ^ b = a + 0 := by
   simp [ha.out]
 
 theorem mul_pow {ea₁ b c₁ : ℕ} {xa₁ : R}
@@ -899,46 +944,6 @@ theorem mul_pow_mul {ea₁ b c₁ : ℕ} {xa₁ c₃ d : R} (_ : ea₁ * b = c�
     (_ : xa₁ ^ c₁ * (nat_lit 1).rawCast = c₃) (_ : c₃ * c₂ = d) :
     (xa₁ ^ ea₁ * a₂ : R) ^ b = d := by
   subst_vars; simp [_root_.mul_pow, pow_mul, Nat.rawCast]
-
--- needed to lift from `OptionT CoreM` to `OptionT MetaM`
-private local instance {m m'} [Monad m] [Monad m'] [MonadLiftT m m'] :
-    MonadLiftT (OptionT m) (OptionT m') where
-  monadLift x := OptionT.mk x.run
-
-/-- There are several special cases when exponentiating monomials:
-
-* `1 ^ n = 1`
-* `x ^ y = (x ^ y)` when `x` is a constant (Note this may fail if e.g. `y` is not a constant)
-* `(a * b) ^ e = a ^ e * b ^ e`
-
-In all other cases we use `evalPowProdAtom`.
--/
-def evalPowProd {a : Q($α)} {b : Q(ℕ)} (va : ExProd bt sα a) (vb : ExProdNat b) :
-    MetaM <| Result (ExProd bt sα) q($a ^ $b) := do
-  Lean.Core.checkSystem decl_name%.toString
-  let res : OptionT MetaM (Result (ExProd bt sα) q($a ^ $b)) := do
-    match va with
-    | va@(.const za) =>
-      match rc.isOne za with
-      | .some pf =>
-        return ⟨_, va, q(one_pow $b $pf)⟩
-      | .none =>
-        -- NOTE: rc.pow may fail, e.g. for `ring` when `vb` is not a constant.
-        let ⟨_, zc, pc⟩ ← rc.pow za vb
-        return ⟨_, .const zc, q($pc)⟩
-    | .mul vxa₁ (e := ea₁) vea₁ va₂ =>
-      let ⟨ea₁', vea₁'⟩ := vea₁.toExProd
-      let ⟨b', vb'⟩ := vb.toExProd
-      let ⟨c₁, vc₁, pc₁⟩ ← evalMulProd rcℕ rcℕ vea₁' vb'
-      let ⟨c₁', vc₁'⟩ := vc₁.toExProdNat
-      let ⟨_, vc₂, pc₂⟩ ← evalPowProd va₂ vb
-      let ⟨_, vc₃, pc₃⟩ := vxa₁.toProd rc vc₁'
-      let ⟨_, vd, pd⟩ ← evalMulProd rc rcℕ vc₃ vc₂
-      have : $c₁ =Q $c₁' := ⟨⟩
-      have : $b =Q $b' := ⟨⟩
-      have : $ea₁ =Q $ea₁' := ⟨⟩
-      return ⟨_, vd, q(mul_pow_mul $pc₁ $pc₂ $pc₃ $pd)⟩
-  return (← res.run).getD (evalPowProdAtom rc va vb)
 
 /--
 The result of `extractCoeff` is a numeral and a proof that the original expression
@@ -980,19 +985,110 @@ def extractCoeff {a : Q(ℕ)} (va : ExProdNat a) : ExtractCoeff a :=
     ⟨k, _, .mul va₁ va₂ vc, q(coeff_mul $a₁ $a₂ $pc)⟩
 termination_by structural a
 
-theorem pow_one_cast (a : R) : a ^ (nat_lit 1).rawCast = a := by simp
-
 theorem pow_one_cast_of_isNat (a : R) (b : ℕ) (hb : IsNat b 1) :
     a ^ b = a := by simp [hb.out]
 
 theorem zero_pow {b : ℕ} (_ : 0 < b) : (0 : R) ^ b = 0 := match b with | b+1 => by simp [pow_succ]
 
-theorem single_pow {b : ℕ} (_ : (a : R) ^ b = c) : (a + 0) ^ b = c + 0 := by
+theorem single_pow {b : ℕ} (_ : (a : R) ^ b = c) : (a + 0) ^ b = c := by
   simp [*]
 
 theorem pow_nat {b c k : ℕ} {d e : R} (_ : b = c * k) (_ : a ^ c = d) (_ : d ^ k = e) :
     (a : R) ^ b = e := by
   subst_vars; simp [pow_mul]
+
+
+/-- Constructs the expression corresponding to `.const n`. -/
+def ExProdNat.mkNat (n : ℕ) : (e : Q(ℕ)) × ExProdNat e :=
+  let lit : Q(ℕ) := .lit (.natVal n)
+  ⟨q(($lit)), .const ⟨n, none⟩⟩
+
+/-- Take out any multiples of `b` from `a`. -/
+def divide {a b : Q(ℕ)} (va : ExProdNat a) (vb : ExProdNat b) :
+    Option ((Σ q : Q(ℕ), ExProdNat q × Q($a = $b * $q)) ⊕
+      (Σ q r : Q(ℕ), ExProdNat q × ExProdNat r × Q($a = $b * $q + $r))) := do
+  match va, vb with
+  | .const ca, .const cb =>
+    -- `ca` and `cb` are natural numbers.
+    let ca := ca.value.num.natAbs; let cb := cb.value.num.natAbs
+    if ca < cb then
+      failure
+    let ⟨q, vq⟩ := ExProdNat.mkNat (ca / cb)
+    if ca % cb = 0 then
+      have : $a =Q $b * $q := ⟨⟩
+      return .inl ⟨q, vq, q(rfl)⟩
+    else
+      let ⟨r, vr⟩ := ExProdNat.mkNat (ca % cb)
+      have : $a =Q $b * $q + $r := ⟨⟩
+      return .inr ⟨q, r, vq, vr, q(rfl)⟩
+  | _, _ => failure
+
+
+mutual
+
+/-- Embed an exponent (an `ExBase, ExProd` pair) as an `ExProd` by multiplying by 1,
+and reducing the exponent if possible. -/
+partial def evalPowRoot {a : Q($α)} {b : Q(ℕ)} (va : ExBase bt sα a) (vb : ExProdNat b) :
+    RingM <| Option (Result (ExSum bt sα) q($a ^ $b)) := unsafe do
+  let .atom id := va | return none -- (ExBase.toProd rc va vb)
+  let some ⟨b', p, vb', vp, h₁⟩ := (← get)[id]? | return none
+  let some div := divide vb vb' | return none
+  have p : Q($α) := p; have h₁ : Q($a ^ $b' = $p) := h₁
+  have vp : ExSum bt sα p := unsafeCast vp
+  match div with
+  | .inl ⟨q, vq, h₂⟩ =>
+    let ⟨pow, vpow, h₃⟩ ← evalPow₁ vp vq
+    return some ⟨pow, vpow, q(Eq.trans (by rw [← $h₁, ← pow_mul, ← $h₂]) $h₃)⟩
+  | .inr ⟨q, r, vq, vr, h₂⟩ =>
+    let ⟨pow, vpow, h₃⟩ ← evalPow₁ vp vq
+    let ⟨r, vr, h₄⟩ := ExBase.toProd rc va vr
+    let ⟨res, vres, h₅⟩ ← evalMul₁ rc rcℕ vr vpow
+    return some ⟨res, vres, q(by
+      rw [← $h₅, ← $h₄, ← $h₃, ← $h₁, ($h₂), pow_add, mul_comm, pow_mul]; simp)⟩
+
+-- /-- Return `a ^ b`, reducing the result if `a` is an n-th root for some `n`. -/
+-- def evalPowBase {a : Q($α)} {b : Q(ℕ)} (va : ExBase bt sα a) (vb : ExProdNat b) :
+--     MetaM <| Result (ExProd bt sα) q($a ^ $b * (nat_lit 1).rawCast) := do
+--   let .atom id := va | return va.toProd rc vb
+--   _
+
+/-- There are several special cases when exponentiating monomials:
+
+* `1 ^ n = 1`
+* `x ^ y = (x ^ y)` when `x` is a constant (Note this may fail if e.g. `y` is not a constant)
+* `(a * b) ^ e = a ^ e * b ^ e`
+
+In all other cases we use `evalPowProdAtom`.
+-/
+partial def evalPowProd {a : Q($α)} {b : Q(ℕ)} (va : ExProd bt sα a) (vb : ExProdNat b) :
+    RingM <| Result (ExSum bt sα) q($a ^ $b) := do
+  Lean.Core.checkSystem decl_name%.toString
+  let res : RingM <| Option (Result (ExSum bt sα) q($a ^ $b)) := do
+    match va with
+    | va@(.const za) =>
+      match rc.isOne za with
+      | some pf =>
+        return some ⟨_, va.toSum, q(one_pow $b $pf)⟩
+      | none =>
+        -- NOTE: rc.pow may fail, e.g. for `ring` when `vb` is not a constant.
+        let some ⟨_, zc, pc⟩ ← liftMetaM <| OptionT.run (rc.pow za vb) | return none
+        return some ⟨_, (ExProd.const zc).toSum, q(by simpa using $pc)⟩
+    | .mul vxa₁ (e := ea₁) vea₁ va₂ =>
+      let ⟨ea₁', vea₁'⟩ := vea₁.toExProd
+      let ⟨b', vb'⟩ := vb.toExProd
+      let ⟨c₁, vc₁, pc₁⟩ ← evalMulProd rcℕ rcℕ vea₁' vb'
+      let ⟨c₁', vc₁'⟩ := vc₁.toExProdNat
+      let ⟨_, vc₂, pc₂⟩ ← evalPowProd va₂ vb
+      have : $c₁ =Q $c₁' := ⟨⟩
+      have : $b =Q $b' := ⟨⟩
+      have : $ea₁ =Q $ea₁' := ⟨⟩
+      if let some ⟨_, vc₃, pc₃⟩ ← evalPowRoot vxa₁ vc₁' then
+        let ⟨_, vd, pd⟩ ← evalMul rc rcℕ vc₃ vc₂
+        return some ⟨_, vd, q(mul_pow_mul $pc₁ $pc₂ (by simpa using $pc₃) $pd)⟩
+      let ⟨_, vc₃, pc₃⟩ := vxa₁.toProd rc vc₁'
+      let ⟨_, vd, pd⟩ ← evalMul₁ rc rcℕ vc₃ vc₂
+      return some ⟨_, vd, q(mul_pow_mul $pc₁ $pc₂ $pc₃ $pd)⟩
+  return (← res).getD (evalPowProdAtom rc va vb)
 
 /-- Exponentiates a polynomial `va` by a monomial `vb`, including several special cases.
 
@@ -1004,15 +1100,15 @@ theorem pow_nat {b c k : ℕ} {d e : R} (_ : b = c * k) (_ : a ^ c = d) (_ : d ^
 Otherwise `a ^ b` is just encoded as `a ^ b * 1 + 0` using `evalPowAtom`.
 -/
 partial def evalPow₁ {a : Q($α)} {b : Q(ℕ)} (va : ExSum bt sα a) (vb : ExProdNat b) :
-    MetaM <| Result (ExSum bt sα) q($a ^ $b) := do
-  let notPowOne : MetaM <| Result (ExSum bt sα) q($a ^ $b) := do
+    RingM <| Result (ExSum bt sα) q($a ^ $b) := do
+  let notPowOne : RingM <| Result (ExSum bt sα) q($a ^ $b) := do
     match va with
     | .zero => match vb.evalPos with
       | some p => return ⟨_, .zero, q(zero_pow (R := $α) $p)⟩
       | none => return evalPowAtom rc (.sum .zero) vb
     | ExSum.add va .zero => -- TODO: using `.add` here takes a while to compile?
-      let ⟨_, vc, pc⟩ ← evalPowProd rc rcℕ va vb
-      return ⟨_, vc.toSum, q(single_pow $pc)⟩
+      let ⟨_, vc, pc⟩ ← evalPowProd va vb
+      return ⟨_, vc, q(single_pow $pc)⟩
     | va =>
       -- FIXME: condition used to be k.coeff > 1. Should go back to something like this.
       let ⟨k, _, vc, pc⟩ := extractCoeff rcℕ vb
@@ -1025,12 +1121,13 @@ partial def evalPow₁ {a : Q($α)} {b : Q(ℕ)} (va : ExSum bt sα a) (vb : ExP
   match vb with
   | .const zb =>
     match rcℕ.isOne zb with
-    | .some pf =>
-      assumeInstancesCommute
+    | some pf =>
       return ⟨_, va, q(pow_one_cast_of_isNat $a _ $pf)⟩
-    | .none => notPowOne
+    | none => notPowOne
   | _ =>
     notPowOne
+
+end
 
 theorem pow_zero (a : R) {e : R} (h : (nat_lit 1).rawCast = e) :
     a ^ 0 = e + 0 := by simp [← h]
@@ -1045,12 +1142,11 @@ theorem pow_add {b₁ b₂ : ℕ} {d : R}
 * `a ^ (b₁ + b₂) = a ^ b₁ * a ^ b₂`
 -/
 def evalPow {a : Q($α)} {b : Q(ℕ)} (va : ExSum bt sα a) (vb : ExSumNat b) :
-    MetaM <| Result (ExSum bt sα) q($a ^ $b) := do
+    RingM <| Result (ExSum bt sα) q($a ^ $b) := do
   match vb with
   | .zero =>
     let ⟨_, one, pf⟩ := rc.one
-    assumeInstancesCommute
-    return ⟨_, (ExProd.const (one)).toSum, q(pow_zero $a $pf)⟩
+    return ⟨_, (ExProd.const one).toSum, q(pow_zero $a $pf)⟩
   | .add vb₁ vb₂ =>
     let ⟨_, vc₁, pc₁⟩ ← evalPow₁ rc rcℕ va vb₁
     let ⟨_, vc₂, pc₂⟩ ← evalPow va vb₂
@@ -1084,26 +1180,6 @@ theorem atom_pf (a : R) {e : ℕ} (hone : (nat_lit 1).rawCast = e)
 theorem atom_pf' (p : (a : R) = a') {e : ℕ} (hone : (nat_lit 1).rawCast = e)
     (hb : a' ^ e * (nat_lit 1).rawCast = b) :
     a = b + 0 := by simp [← hone, ←hb, *]
-
-/--
-Evaluates an atom, an expression where `ring` can find no additional structure.
-
-* `a = a ^ 1 * 1 + 0`
--/
-def evalAtom (e : Q($α)) : AtomM (Result (ExSum bt sα) e) := do
-  let r ← (← read).evalAtom e
-  have e' : Q($α) := r.expr
-  let (i, ⟨a', _⟩) ← addAtomQ e'
-  let ⟨_, one, pf_one⟩ := rcℕ.one
-  let one := ExProdNat.const (one)
-  let ⟨_, vb, pb⟩ : Result (ExProd bt sα) _ := (ExBase.atom i (e := a')).toProd rc one
-  let vc := vb.toSum
-  pure ⟨_, vc, match r.proof? with
-  | none =>
-    have : $e =Q $e' := ⟨⟩
-    q(atom_pf $e $pf_one $pb)
-  | some (p : Q($e = $a')) =>
-    q(atom_pf' $p $pf_one $pb)⟩
 
 theorem inv_mul {R} [Semifield R] {a₁ a₂ a₃ b₁ b₃ c}
     (_ : (a₁⁻¹ : R) = b₁) (_ : (a₃⁻¹ : R) = b₃)
@@ -1259,39 +1335,59 @@ def isAtomOrDerivable
 
 end
 
-variable (rcℕ : RingCompute btℕ sℕ) in
+-- variable (rcℕ : RingCompute btℕ sℕ) in
+
+mutual
+
+/--
+Evaluates an atom, an expression where `ring` can find no additional structure.
+
+* `a = a ^ 1 * 1 + 0`
+-/
+partial def evalAtom {u : Lean.Level} {α : Q(Type u)} {sα : Q(CommSemiring $α)} {bt : Q($α) → Type} (rc : RingCompute bt sα) (rcℕ : RingCompute btℕ sℕ)
+    (c : Cache sα) (e : Q($α)) : RingM (Result (ExSum bt sα) e) := do
+  let r ← (← read).evalAtom e
+  have e' : Q($α) := r.expr
+  let (new, i, ⟨a', _⟩) ← containsThenAddQ e'
+  if new then
+    if let some ⟨n, p, pf⟩ ← mkPowerEq e' then
+      -- have power : Q(ℕ) := power; have expanded : Q($α) := expanded
+      let ⟨_, vb, hb⟩ ← eval (sα := sℕ) rcℕ rcℕ .nat n
+      let ⟨r, vr, hr⟩ ← eval rc rcℕ c p
+      modify (·.insert i ⟨ e', b, r, vb, vr, q(Nat.add_zero $b ▸ $hb ▸ $hr ▸ $pf)⟩)
+  let ⟨_, one, pf_one⟩ := rcℕ.one
+  let one := ExProdNat.const (one)
+  let ⟨_, vb, pb⟩ := (ExBase.atom i (e := a')).toProd (u := u) rc one
+  let vc := vb.toSum
+  pure ⟨_, vc, match r.proof? with
+  | none =>
+    have : $e =Q $e' := ⟨⟩
+    q(atom_pf $e $pf_one $pb)
+  | some (p : Q($e = $a')) =>
+    q(atom_pf' $p $pf_one $pb)⟩
 
 /--
 Evaluates expression `e` of type `α` into a normalized representation as a polynomial.
 This is the main driver of `ring`, which calls out to `evalAdd`, `evalMul` etc.
-
-* `rc` tells us how to normalize constants in `α`.
-* `rcℕ` tells us how to normalize constants in exponents.
 -/
-/- Note: Some other functions include similar `match` statement on all valid head symbols. Any
-changes to `eval` should be kept in sync:
-* `Common.isAtomOrDerivable`
-* `Algebra.collectScalarRings`
--/
-partial def eval  {u : Lean.Level}
-    {α : Q(Type u)} {bt : Q($α) → Type} {sα : Q(CommSemiring $α)} (rc : RingCompute bt sα)
-    (c : Cache sα) (e : Q($α)) : AtomM (Result (ExSum bt sα) e) := Lean.withIncRecDepth do
+partial def eval {u : Lean.Level} {α : Q(Type u)} {sα : Q(CommSemiring $α)} {bt : Q($α) → Type} (rc : RingCompute bt sα) (rcℕ : RingCompute btℕ sℕ)
+    (c : Cache sα) (e : Q($α)) : RingM (Result (ExSum bt sα) e) := Lean.withIncRecDepth do
   let els := do
     try rc.derive e
-    catch _ => evalAtom rc rcℕ e
+    catch _ => evalAtom rc rcℕ c e
   let .const n _ := (← withReducible <| whnf e).getAppFn | els
   match n, c.rα, c.dsα with
   | ``HAdd.hAdd, _, _ | ``Add.add, _, _ => match e with
     | ~q($a + $b) =>
-      let ⟨_, va, pa⟩ ← eval rc c a
-      let ⟨_, vb, pb⟩ ← eval rc c b
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
+      let ⟨_, vb, pb⟩ ← eval rc rcℕ c b
       let ⟨c, vc, p⟩ ← evalAdd rc rcℕ va vb
       pure ⟨c, vc, q(add_congr $pa $pb $p)⟩
     | _ => els
   | ``HMul.hMul, _, _ | ``Mul.mul, _, _ => match e with
     | ~q($a * $b) =>
-      let ⟨_, va, pa⟩ ← eval rc c a
-      let ⟨_, vb, pb⟩ ← eval rc c b
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
+      let ⟨_, vb, pb⟩ ← eval rc rcℕ c b
       let ⟨c, vc, p⟩ ← evalMul rc rcℕ va vb
       pure ⟨c, vc, q(mul_congr $pa $pb $p)⟩
     | _ => els
@@ -1299,7 +1395,7 @@ partial def eval  {u : Lean.Level}
     | ~q(@HSMul.hSMul $R _ _ (@instHSMul _ _ $inst) $r $a) =>
       try
         let sR : Q(CommSemiring $R) ← synthInstanceQ q(CommSemiring $R)
-        let ⟨_, vb, pb⟩ ← eval rc c a
+        let ⟨_, vb, pb⟩ ← eval rc rcℕ c a
         let ⟨_, vt, pt⟩ ← rc.cast _ _ q($sR) q(inferInstance) _
         let ⟨_, vc, pc⟩ ← evalMul rc rcℕ vt vb
         return ⟨_, vc, q(smul_congr $pb $pt $pc)⟩
@@ -1307,8 +1403,8 @@ partial def eval  {u : Lean.Level}
     | _ => els
   | ``HPow.hPow, _, _ | ``Pow.pow, _, _ => match e with
     | ~q($a ^ $b) =>
-      let ⟨_, va, pa⟩ ← eval rc c a
-      let ⟨b, vb, pb⟩ ← eval rcℕ .nat b
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
+      let ⟨b, vb, pb⟩ ← eval rcℕ rcℕ .nat b
       let ⟨b', vb'⟩ := vb.toExSumNat
       have : $b =Q $b' := ⟨⟩
       let ⟨c, vc, p⟩ ← evalPow rc rcℕ va vb'
@@ -1316,30 +1412,32 @@ partial def eval  {u : Lean.Level}
     | _ => els
   | ``Neg.neg, some rα, _ => match e with
     | ~q(-$a) =>
-      let ⟨_, va, pa⟩ ← eval rc c a
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
       let ⟨b, vb, p⟩ ← evalNeg rc rα va
       pure ⟨b, vb, q(neg_congr $pa $p)⟩
     | _ => els
   | ``HSub.hSub, some rα, _ | ``Sub.sub, some rα, _ => match e with
     | ~q($a - $b) => do
-      let ⟨_, va, pa⟩ ← eval rc c a
-      let ⟨_, vb, pb⟩ ← eval rc c b
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
+      let ⟨_, vb, pb⟩ ← eval rc rcℕ c b
       let ⟨c, vc, p⟩ ← evalSub rc rcℕ rα va vb
       pure ⟨c, vc, q(sub_congr $pa $pb $p)⟩
     | _ => els
   | ``Inv.inv, _, some dsα => match e with
     | ~q($a⁻¹) =>
-      let ⟨_, va, pa⟩ ← eval rc c a
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
       let ⟨b, vb, p⟩ ← va.evalInv rc rcℕ dsα c.czα
       pure ⟨b, vb, q(inv_congr $pa $p)⟩
     | _ => els
   | ``HDiv.hDiv, _, some dsα | ``Div.div, _, some dsα => match e with
     | ~q($a / $b) => do
-      let ⟨_, va, pa⟩ ← eval rc c a
-      let ⟨_, vb, pb⟩ ← eval rc c b
+      let ⟨_, va, pa⟩ ← eval rc rcℕ c a
+      let ⟨_, vb, pb⟩ ← eval rc rcℕ c b
       let ⟨c, vc, p⟩ ← evalDiv rc rcℕ dsα c.czα va vb
       pure ⟨c, vc, q(div_congr $pa $pb $p)⟩
     | _ => els
   | _, _, _ => els
+
+end
 
 end Mathlib.Tactic.Ring.Common
