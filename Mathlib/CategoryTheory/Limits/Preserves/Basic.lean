@@ -109,12 +109,12 @@ attribute [instance 100]
   PreservesColimitsOfShape.preservesColimit
   PreservesColimitsOfSize.preservesColimitsOfShape
 
-/-- A convenience function for `PreservesLimit`, which takes the functor as an explicit argument to
-guide typeclass resolution.
+/-- If `F` preserves the limit of a functor `K` and `c` is a limit cone for `K`,
+then `F.mapCone c` is a limit cone.
 -/
-@[to_dual
-/-- A convenience function for `PreservesColimit`, which takes the functor as an explicit argument
-to guide typeclass resolution.
+@[no_expose, to_dual
+/-- If `F` preserves the colimit of a functor `K` and `c` is a colimit cocone for `K`,
+then `F.mapCocone c` is a colimit cocone.
 -/]
 def isLimitOfPreserves (F : C ⥤ D) {c : Cone K} (t : IsLimit c) [PreservesLimit K F] :
     IsLimit (F.mapCone c) :=
