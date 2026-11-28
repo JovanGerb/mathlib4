@@ -278,19 +278,6 @@ theorem submartingale_iff_condExp_sub_nonneg [PartialOrder E] [IsOrderedAddMonoi
 
 end Submartingale
 
-namespace Supermartingale
-
-section
-
-variable {F : Type*} [NormedAddCommGroup F] [PartialOrder F] [NormedSpace ℝ F] [CompleteSpace F]
-  [IsOrderedModule ℝ F]
-
-attribute [to_dual self (dont_translate := α)] smul_le_smul_of_nonneg_left
-
-end
-
-end Supermartingale
-
 namespace Submartingale
 
 section

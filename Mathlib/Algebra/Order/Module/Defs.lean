@@ -322,7 +322,8 @@ lemma monotone_smul_left_of_nonneg [PosSMulMono α β] (ha : 0 ≤ a) : Monotone
 lemma strictMono_smul_left_of_pos [PosSMulStrictMono α β] (ha : 0 < a) :
     StrictMono ((a • ·) : β → β) := PosSMulStrictMono.smul_lt_smul_of_pos_left ha
 
-@[gcongr] lemma smul_le_smul_of_nonneg_left [PosSMulMono α β] (hb : b₁ ≤ b₂) (ha : 0 ≤ a) :
+@[gcongr, to_dual self (dont_translate := α)]
+lemma smul_le_smul_of_nonneg_left [PosSMulMono α β] (hb : b₁ ≤ b₂) (ha : 0 ≤ a) :
     a • b₁ ≤ a • b₂ := monotone_smul_left_of_nonneg ha hb
 
 @[gcongr] lemma smul_lt_smul_of_pos_left [PosSMulStrictMono α β] (hb : b₁ < b₂) (ha : 0 < a) :
