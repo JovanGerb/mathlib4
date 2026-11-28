@@ -647,7 +647,7 @@ lemma integral_mono_measure [OrderClosedTopology E] {f : α → E} {ν : Measure
     (Eventually.of_forall <| SimpleFunc.approxOn_range_nonneg hg_nonneg n) hle
     (SimpleFunc.integrable_approxOn_range _ hfi n)
 
-variable [ClosedIciTopology E]
+variable [OrderClosedTopology E]
 
 /-- The integral of a function which is nonnegative almost everywhere is nonnegative. -/
 lemma integral_nonneg_of_ae {f : α → E} (hf : 0 ≤ᵐ[μ] f) :

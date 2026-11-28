@@ -202,7 +202,7 @@ theorem setToL1_mono_left [OrderClosedTopology G''] {T T' : Set α → E →L[�
     (hTT' : ∀ s x, T s x ≤ T' s x) (f : α →₁[μ] E) : setToL1 hT f ≤ setToL1 hT' f :=
   setToL1_mono_left' hT hT' (fun s _ _ x => hTT' s x) f
 
-theorem setToL1_nonneg [ClosedIciTopology G''] {T : Set α → G' →L[ℝ] G''} {C : ℝ}
+theorem setToL1_nonneg [OrderClosedTopology G''] {T : Set α → G' →L[ℝ] G''} {C : ℝ}
     (hT : DominatedFinMeasAdditive μ T C)
     (hT_nonneg : ∀ s, MeasurableSet s → μ s < ∞ → ∀ x, 0 ≤ x → 0 ≤ T s x) {f : α →₁[μ] G'}
     (hf : 0 ≤ f) : 0 ≤ setToL1 hT f := by
@@ -218,7 +218,7 @@ theorem setToL1_nonneg [ClosedIciTopology G''] {T : Set α → G' →L[ℝ] G''}
     rw [this, setToL1_eq_setToL1SCLM]
     exact setToL1S_nonneg (fun s => hT.eq_zero_of_measure_zero) hT.1 hT_nonneg g.property
 
-theorem setToL1_mono [ClosedIciTopology G''] [IsOrderedAddMonoid G']
+theorem setToL1_mono [OrderClosedTopology G''] [IsOrderedAddMonoid G']
     {T : Set α → G' →L[ℝ] G''} {C : ℝ} (hT : DominatedFinMeasAdditive μ T C)
     (hT_nonneg : ∀ s, MeasurableSet s → μ s < ∞ → ∀ x, 0 ≤ x → 0 ≤ T s x) {f g : α →₁[μ] G'}
     (hfg : f ≤ g) : setToL1 hT f ≤ setToL1 hT g := by

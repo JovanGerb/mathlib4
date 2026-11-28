@@ -284,7 +284,7 @@ theorem setToFun_mono_left [OrderClosedTopology G''] {T T' : Set α → E →L[�
     (hTT' : ∀ s x, T s x ≤ T' s x) (f : α →₁[μ] E) : setToFun μ T hT f ≤ setToFun μ T' hT' f :=
   setToFun_mono_left' hT hT' (fun s _ _ x => hTT' s x) f
 
-theorem setToFun_nonneg [ClosedIciTopology G''] {T : Set α → G' →L[ℝ] G''} {C : ℝ}
+theorem setToFun_nonneg [OrderClosedTopology G''] {T : Set α → G' →L[ℝ] G''} {C : ℝ}
     (hT : DominatedFinMeasAdditive μ T C)
     (hT_nonneg : ∀ s, MeasurableSet s → μ s < ∞ → ∀ x, 0 ≤ x → 0 ≤ T s x) {f : α → G'}
     (hf : 0 ≤ᵐ[μ] f) : 0 ≤ setToFun μ T hT f := by
@@ -295,7 +295,7 @@ theorem setToFun_nonneg [ClosedIciTopology G''] {T : Set α → G' →L[ℝ] G''
     exact L1.setToL1_nonneg hT hT_nonneg hf
   · simp_rw [setToFun_undef _ hfi, le_rfl]
 
-theorem setToFun_mono [ClosedIciTopology G''] [IsOrderedAddMonoid G']
+theorem setToFun_mono [OrderClosedTopology G''] [IsOrderedAddMonoid G']
     {T : Set α → G' →L[ℝ] G''} {C : ℝ} (hT : DominatedFinMeasAdditive μ T C)
     (hT_nonneg : ∀ s, MeasurableSet s → μ s < ∞ → ∀ x, 0 ≤ x → 0 ≤ T s x) {f g : α → G'}
     (hf : Integrable f μ) (hg : Integrable g μ) (hfg : f ≤ᵐ[μ] g) :

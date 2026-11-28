@@ -58,7 +58,7 @@ section HasSolidNorm
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [CompleteSpace E]
 
-lemma condExp_le_nonneg_const [PartialOrder E] [ClosedIciTopology E] [IsOrderedAddMonoid E]
+lemma condExp_le_nonneg_const [PartialOrder E] [OrderClosedTopology E] [IsOrderedAddMonoid E]
     [IsOrderedModule ℝ E] {f : α → E} {c : E} (hc : 0 ≤ c) (hfc : ∀ᵐ x ∂μ, f x ≤ c) :
     ∀ᵐ x ∂μ, μ[f | m] x ≤ c := by
   by_cases! hm : ¬ m ≤ m0

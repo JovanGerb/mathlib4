@@ -39,6 +39,7 @@ theorem EventuallyLE.mul_nonneg [Semiring β] [PartialOrder β] [IsOrderedRing �
     {l : Filter α} {f g : α → β} (hf : 0 ≤ᶠ[l] f)
     (hg : 0 ≤ᶠ[l] g) : 0 ≤ᶠ[l] f * g := by filter_upwards [hf, hg] with x using _root_.mul_nonneg
 
+@[to_dual none]
 theorem eventually_sub_nonneg [AddGroup β] [LE β] [AddRightMono β]
     {l : Filter α} {f g : α → β} :
     0 ≤ᶠ[l] g - f ↔ f ≤ᶠ[l] g :=

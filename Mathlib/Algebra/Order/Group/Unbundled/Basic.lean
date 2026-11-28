@@ -224,7 +224,7 @@ alias ⟨_, sub_le_self⟩ := sub_le_self_iff
 
 variable [MulRightMono α]
 
-@[to_additive (attr := simp)]
+@[to_additive (attr := simp, to_dual self)]
 theorem inv_le_inv_iff : a⁻¹ ≤ b⁻¹ ↔ b ≤ a := by
   rw [← mul_le_mul_iff_left a, ← mul_le_mul_iff_right b]
   simp
@@ -487,6 +487,11 @@ theorem div_le_one' : a / b ≤ 1 ↔ a ≤ b := by
   rw [← mul_le_mul_iff_right b, one_mul, div_eq_mul_inv, inv_mul_cancel_right]
 
 alias ⟨le_of_sub_nonpos, sub_nonpos_of_le⟩ := sub_nonpos
+
+attribute [to_dual existing div_le_one'] one_le_div'
+attribute [to_dual existing sub_nonpos] sub_nonneg
+attribute [to_dual existing le_of_sub_nonpos] le_of_sub_nonneg
+attribute [to_dual existing sub_nonpos_of_le] sub_nonneg_of_le
 
 @[to_additive]
 theorem le_div_iff_mul_le : a ≤ c / b ↔ a * b ≤ c := by

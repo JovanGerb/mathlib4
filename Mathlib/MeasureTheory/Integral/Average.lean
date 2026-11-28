@@ -480,7 +480,7 @@ theorem average_mem_openSegment_compl_self [IsFiniteMeasure μ] {f : α → E} {
   simp [average, Finset.expect, ← NNRat.cast_smul_eq_nnqsmul ℝ]
 
 section PartialOrder
-variable [PartialOrder E] [IsOrderedAddMonoid E] [IsOrderedModule ℝ E] [ClosedIciTopology E]
+variable [PartialOrder E] [IsOrderedAddMonoid E] [IsOrderedModule ℝ E] [OrderClosedTopology E]
 
 /-- The average of a function which is nonnegative almost everywhere is nonnegative. -/
 lemma average_nonneg_of_ae (hf : 0 ≤ᵐ[μ] f) : 0 ≤ ⨍ a, f a ∂μ :=

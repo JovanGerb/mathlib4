@@ -740,7 +740,7 @@ theorem setIntegral_le_integral [OrderClosedTopology E] (hfi : Integrable f μ) 
     ∫ x in s, f x ∂μ ≤ ∫ x, f x ∂μ :=
   integral_mono_measure (Measure.restrict_le_self) hf hfi
 
-variable [ClosedIciTopology E]
+variable [OrderClosedTopology E]
 
 section
 variable (hf : IntegrableOn f s μ) (hg : IntegrableOn g s μ)
@@ -752,6 +752,7 @@ theorem setIntegral_mono_ae_restrict (h : f ≤ᵐ[μ.restrict s] g) :
   · exact integral_mono_ae hf hg h
   · simp [integral_of_not_completeSpace hE]
 
+@[to_dual self (reorder := f g, hf hg)]
 theorem setIntegral_mono_ae (h : f ≤ᵐ[μ] g) : ∫ x in s, f x ∂μ ≤ ∫ x in s, g x ∂μ :=
   setIntegral_mono_ae_restrict hf hg (ae_restrict_of_ae h)
 
