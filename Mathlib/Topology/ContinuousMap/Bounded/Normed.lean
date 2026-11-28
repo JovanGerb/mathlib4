@@ -5,6 +5,7 @@ Authors: Sébastien Gouëzel, Mario Carneiro, Yury Kudryashov, Heather Macbeth
 -/
 module
 
+public import Mathlib.Algebra.Algebra.FunLike
 public import Mathlib.Algebra.Module.MinimalAxioms
 public import Mathlib.Analysis.Normed.Operator.Basic
 public import Mathlib.Analysis.Normed.Order.Lattice
@@ -481,8 +482,7 @@ section NormedCommRing
 
 variable [TopologicalSpace α] {R : Type*}
 
-instance instCommRing [SeminormedCommRing R] : CommRing (α →ᵇ R) where
-  mul_comm _ _ := ext fun _ ↦ mul_comm _ _
+instance instCommRing [SeminormedCommRing R] : CommRing (α →ᵇ R) := fast_instance% FunLike.commRing
 
 instance instSeminormedCommRing [SeminormedCommRing R] : SeminormedCommRing (α →ᵇ R) where
   __ := instCommRing
@@ -529,9 +529,9 @@ instance instAlgebra : Algebra 𝕜 (α →ᵇ γ) where
   commutes' _ _ := ext fun _ ↦ Algebra.commutes' _ _
   smul_def' _ _ := ext fun _ ↦ Algebra.smul_def' _ _
 
-@[simp]
-theorem algebraMap_apply (k : 𝕜) (a : α) : algebraMap 𝕜 (α →ᵇ γ) k a = k • (1 : γ) := by
-  simp only [Algebra.algebraMap_eq_smul_one, smul_apply, one_apply]
+@[deprecated algebraMap_apply +typeChanged (since := "2026-10-27")]
+protected theorem algebraMap_apply (k : 𝕜) (a : α) : algebraMap 𝕜 (α →ᵇ γ) k a = k • (1 : γ) := by
+  simp [Algebra.algebraMap_eq_smul_one]
 
 instance instNormedAlgebra : NormedAlgebra 𝕜 (α →ᵇ γ) where
   __ := instAlgebra
@@ -550,12 +550,14 @@ protected def AlgHom.compLeftContinuousBounded [NormedRing β] [NormedAlgebra �
 /-- The algebra-homomorphism forgetting that a bounded continuous function is bounded. -/
 @[simps]
 def toContinuousMapₐ : (α →ᵇ γ) →ₐ[𝕜] C(α, γ) where
-  toFun := (↑)
+  toFun := toContinuousMap
   map_one' := rfl
   map_mul' _ _ := rfl
   map_zero' := rfl
   map_add' _ _ := rfl
   commutes' _ := rfl
+
+lemma toContinuousMapₐ_apply_apply (f : α →ᵇ γ) (a : α) : f.toContinuousMapₐ 𝕜 a = f a := rfl
 
 @[simp]
 theorem coe_toContinuousMapₐ (f : α →ᵇ γ) : (f.toContinuousMapₐ 𝕜 : α → γ) = f := rfl
